@@ -51,3 +51,24 @@ Quit the server with CTRL-BREAK.
 ブラウザのURL欄に`http://127.0.0.1:8000/`と記述<br>
 画面が表示されると成功。
 ![image](https://user-images.githubusercontent.com/72511158/98944755-df4fad00-2534-11eb-9137-8e420b2011ca.png)
+
+# Bootstrapを使用する
+モダンなウェブサイトを作るUIライブラリ
+- CSS(スタイルシート。レイアウトを指定)
+- jQuery(JavaScriptの汎用ライブラリ)
+- Bootstrap.js(Bootstrap専用JavaScriptライブラリ)
+
+## Bootstrapの特徴
+1. レスポンシブデザイン対応
+  - スマホやタブレットにも最適化
+1. オープンソース
+  - 自在にカスタマイズ可能
+  - JavaScript,CSSの知識が必要
+1. デザインテーマが入手可能
+<strong>デザイン力が無くても使える</strong>
+
+## 導入方法
+Starter template:最小限、使用するためのタグを使用する
+<br>https://getbootstrap.jp/
+<br>始めるをクリックし、スターターテンプレートをコピペする<br>
+https://getbootstrap.jp/docs/4.5/getting-started/introduction/

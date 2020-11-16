@@ -472,3 +472,215 @@ Postというモデルを読み込む
   - BASE_DIR:このプロジェクトのフォルダがどこにあるかをOSから取得している
   - picsという仮想的なURLを作成して、その下にアドレスを動的に作成している<br>
   `<img src="/pics/media/%E3%83%80%E3%82%A6%E3%83%B3%E3%83%AD%E3%83%BC%E3%83%89_4WQAfrD.jpg" />`
+
+# 投稿の詳細ページを作成
+投稿のタイトルをクリックすると、投稿詳細ページに遷移するようにする。
+- DjangoはモデルをDBに格納する際に、自動でidを定義し、連番で格納している(primary_key)
+- このidを選択することで、詳細ページに飛ぶようにする
+```
+sqlite> select * from sqlite_master where type='table' and name='posts_post';
+    type = table
+    name = posts_post
+tbl_name = posts_post
+rootpage = 33
+     sql = CREATE TABLE "posts_post" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "title" varchar(100) NOT NULL, "published" datetime NOT NULL, "image" varchar(100) NOT NULL, "body" text NOT NULL)
+```
+
+## ルーティングとは
+決められたurlpatternによって、さまざまなページを振り分けること<br>
+`url(r'^posts/', include('posts.urls'))`
+- urlというメソッドを使う
+- postsというアドレスがあれば、posts.urlsに振り分ける
+
+## 投稿のIDをURLから取得して渡す
+`url(r'^posts/(?P<post_id>[0-9]+)/$',posts.views.post_detail, name="post_detail")`
+- `r'^posts` : postsから始まるアドレス
+- `(?P<post_id>[0-9]+)/$` : 番号の部分を表現。Djangoの特有の表現で、(?P<>)とすると、<>で囲まれた部分が変数名となる。/$は末尾。
+  - `[0-9]+` : 0から9の数字が複数(+)並んでいるという意味
+  - このパターンに一致したなら、数字を変数`<post_id>`に格納する
+- `posts.view.post_detail, name="post_detail"` : postsのviewである、post_detailに変数<post_id>を渡して、ページ遷移する
+1. urls.pyを編集<br>
+`url(r'^posts/(?P<post_id>[0-9]+)/$',posts.views.post_detail, name="post_detail")`
+1. viewにpost_detailを追加
+
+  ```python :
+  from django.shortcuts import render
+  from django.http import HttpResponse
+  from .models import Post
+
+  # Create your views here.
+  def index(request):
+      #return HttpResponse("Hello World! このページは投稿のインデックスです")
+      posts = Post.objects.order_by('-published')
+      return render(request, 'posts/index.html', {'posts': posts})
+
+  def post_detail(request, post_id):
+      return render(request, 'posts/post_detail.html',{'post_id':post_id})
+  ```
+1. post_detail.htmlを作成
+1. urls.pyがpostsのviewを参照できるように下記を追加
+- `from posts import view`
+- urlを書き換える
+  - `url(r'^posts/(?P<post_id>[0-9]+)/$', views.post_detail, name="post_detail")`
+
+## 投稿のidからデータを取り出して表示する
+1. views.pyを書き換えていく
+- returnの前に一行追加`post = Post.objects.get(pk=post_id)`
+  - postという変数に、Postからpost_idを主キーとしてデータを取り出す
+- return文の変数を変更`return render(request, 'posts/post_detail.html',{'post':post})`
+  - postという変数に、postを格納する
+1. post_detail.htmlを編集
+タイトル、投稿日、本文が表示される
+```html:post_detail.html
+{{ post.title }}
+
+{{ post.published }}
+
+{{ post.body }}
+```
+
+## オブジェクトが存在しない場合の処理を追加する
+- views.pyにget_object_or_404関数をimport
+  - オブジェクトを取得した際に、存在しなければ、404を返す関数
+```python:views.py
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse
+from .models import Post
+
+# Create your views here.
+def index(request):
+    #return HttpResponse("Hello World! このページは投稿のインデックスです")
+    posts = Post.objects.order_by('-published')
+    return render(request, 'posts/index.html', {'posts': posts})
+
+def post_detail(request, post_id):
+    post = get_object_or_404(Post, pk=post_id)
+    return render(request, 'posts/post_detail.html',{'post':post})
+```
+
+## 投稿の一覧から詳細へのリンクを作成する
+1. index.htmlのタイトルをリンクにする<br>
+`<a href ="{% url 'post_detail' post.id %}">{{ post.title }}</a>`
+- `a href`: aタグがリンクを表し、href属性でリンク先を表現する
+- `"{% url 'post_detail' post.id %}"` : DjangoのTemplateEngineを使用し、リンク先をpost_detailに置き換え、post.idをページに渡す
+1. ルーティングでpost_detailを振り分けられるようにする<br>
+- urls.pyのurl部分にnameで名前を付ける`url(r'^posts/(?P<post_id>[0-9]+)/$', views.post_detail, name="post_detail")`
+
+## 投稿一覧にBootstrapを使する
+- StarterTemplateを使用
+  - indes.htmlにコピペし、CSSとJSを読み込む
+  ```python:index.htmlを作成
+  <!DOCTYPE html>
+  <html lang = "ja-jp">
+  <head>
+    <title>投稿一覧</title>
+    <meta charset="utf-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+     <title>Hello, world!</title>
+  </head>
+  <body>
+    <h1>ようこそ、私のブログへ！</h1>
+
+    <h2>最新の投稿</h2>
+
+    {% for post in posts.all %}
+
+      <a href ="{% url 'post_detail' post.id %}">{{ post.title }}</a>
+      <br /><br />
+      {{ post.published }}
+      <br /><br />
+      <img src="{{ post.image.url }}" />
+      <br />
+      {{ post.summary }}
+      <br /><br />
+
+    {% endfor %}
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+  </body>
+  </html>
+  ```
+- ライブラリを使用し、メニューを付ける<br>
+本文の一番前の部分にBootstrapのNavbarを張り付ける。その後、文字などを編集し、わかりやすくする。
+```html: index.html
+<!DOCTYPE html>
+<html lang = "ja-jp">
+<head>
+  <title>投稿一覧</title>
+  <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+   <title>Hello, world!</title>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <a class="navbar-brand" href="#">私のブログ</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Dropdown
+        </a>
+        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+          <a class="dropdown-item" href="#">Action</a>
+          <a class="dropdown-item" href="#">Another action</a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="#">Something else here</a>
+        </div>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+    <form class="form-inline my-2 my-lg-0">
+      <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
+      <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+    </form>
+  </div>
+</nav>
+<div class="container">
+  <h1>ようこそ、私のブログへ！</h1>
+
+  <h2>最新の投稿</h2>
+
+  {% for post in posts.all %}
+
+    <a href ="{% url 'post_detail' post.id %}">{{ post.title }}</a>
+    <br /><br />
+    {{ post.published }}
+    <br /><br />
+    <img src="{{ post.image.url }}" />
+    <br />
+    {{ post.summary }}
+    <br /><br />
+
+  {% endfor %}
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+</div>
+</body>
+</html>
+```
+  - `div`: Division・四角形の領域で囲う
+  - 結果はこうなる～、見栄えが良くなる～,便利やな！！！
+![image](https://user-images.githubusercontent.com/72511158/99261409-09201100-2860-11eb-9759-ebd32b97d78f.png)
+
+- 写真をレスポンシブに拡大・縮小する
+  - imageタグにclass='img-fluid'を指定する<br>
+  `<img src="{{ post.image.url }}" class = "img-fluid" />`
+  - ほかのオプションを試す
+  `rouded` :　角が丸くなる
+  `img-thumbnail`: imageをサムネイル化する
