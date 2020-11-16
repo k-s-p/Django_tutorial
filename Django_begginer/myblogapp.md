@@ -684,3 +684,5 @@ def post_detail(request, post_id):
   - ほかのオプションを試す
   `rouded` :　角が丸くなる
   `img-thumbnail`: imageをサムネイル化する
+
+## メニューと詳細ページを調整する
