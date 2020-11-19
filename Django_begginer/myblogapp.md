@@ -686,3 +686,61 @@ def post_detail(request, post_id):
   `img-thumbnail`: imageをサムネイル化する
 
 ## メニューと詳細ページを調整する
+デフォルトのままだと、メニューバーにいらないリンクなどがあるので体裁を整える。
+1. 画像の高さを整えるためにstyleを定義する<br>
+  `<img src="{{ post.image.url }}" class = "img-fluid rounded" style="max-height: 200px;"/>`
+1. タイトルの大きさを調整するために、見出しのサイズを変更する<br>
+  `<h2>最新の投稿</h2>` →  `<h3>最新の投稿</h3>`
+  - <h1>から<h6>の順に見出しのサイズが小さくなる
+1. リンクに何かアドレスを追加する
+  `<a class="nav-link" href="http://www.pornograffitti.jp/?_ga=2.47412065.75155999.1605703580-91063952.1590658384">ポルノグラフィティOfficialSite</a>`
+1. 不要な部分の削除
+  以下の部分を削除する(ドロップダウンアクションとサーチ)
+  ```html: index.html
+  <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Dropdown
+        </a>
+        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+          <a class="dropdown-item" href="#">Action</a>
+          <a class="dropdown-item" href="#">Another action</a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="#">Something else here</a>
+        </div>
+      </li>
+
+      <form class="form-inline my-2 my-lg-0">
+    <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
+    <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+  </form>
+  ```
+1. タイトルの下に画像を表示
+  アプリケーションフォルダのtemplatesと同じ階層にstaticというフォルダを作成。さらにその中に、アプリケーションと同名のフォルダを作成。このフォルダの中に画像ファイルを入れていく。
+  - staticフォルダの画像を参照.さらに、タイトルをセンターに
+  ```html:
+  <h1 class="text-center">ようこそ、スガヤのブログへ！</h1>
+  <br /><br />
+  {% load static %}
+  <img src="{% static 'posts/pg.jpg'%}" class = "img-fluid rounded" style="max-height: 200px;"/>
+  ```
+  - 引っかかったのでメモ<br>
+  まず、settings.pyに`STATIC_URL = '/static/'`があることが前提。さらに、一度サーバーを再起動する必要あり。
+1. 細かい調整
+  - タイトルの下にラインを入れる`<hr>`
+  - 投稿詳細ページの体裁も整える。
+1. StaticなAboutページの作成
+  - staticフォルダのpostsにabout.htmlを作成
+  - staticフォルダ内を参照するので画像などはTemplate Engineを使用する必要はない
+  ```html: about.html
+  <!--{% load static %} -->
+  <!--<a class="nav-link" href="{% static 'posts/about.html' %}">About</a> -->
+  <a class="nav-link" href="./about.html">About</a>
+  ```
+  ```html:about.html
+  <!--{% load static %}
+  <img src="{% static 'posts/pg-2.jpg'%}" class = "img-fluid rounded" style="max-height: 200px;"/>
+  -->
+  <img src="./pg-2.jpg" class = "img-fluid rounded" style="max-height: 200px;"/>
+  ```
+
+# AWS上でアプリケーションを公開する
