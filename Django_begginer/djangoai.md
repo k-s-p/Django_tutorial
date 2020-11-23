@@ -570,3 +570,63 @@ print(classes[predicted], percentage)
 - `python predict.py car_1.jpg`<br>
 - `car 100`
 - gtx1050tiはメモリが足りなくて、邪魔な表示がたくさんでるな、、、
+
+# DjangoでWebアプリ化する
+![image](https://user-images.githubusercontent.com/72511158/99968584-a63cf580-2ddc-11eb-80b1-bea49e9c3226.png)
+## djangoにプロジェクトの追加
+- djangoをインストール
+- プロジェクトを作成`django-admin startproject aiapps`
+
+## アプリケーションの追加
+- carbikeアプリケーションを作成`python manage.py startapp carbike`
+- urls.pyにcarbikeが呼ばれた時の処理を追加する
+```python:
+from django.contrib import admin
+from django.urls import path
+import carbike.views as carbike
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('carbike/', carbike.index), #もしもcarbikeというindexを見に来たら、carbike.indexを返す
+]
+```
+
+## ルーティングファイルを分割する
+- 個別アプリのurls.pyを参照するように変更
+- 全体のurls.pyを編集
+```python: urls.py
+from django.contrib import admin
+from django.urls import path, include
+#import carbike.views as carbike
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('carbike/', include('carbike.urls')), #もしもcarbikeというindexを見に来たら、carbike.indexを返す
+]
+```
+- 個別アプリのurls.pyを編集
+```python: urls.py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('predict/', views.predict, name='prideict'),
+]
+```
+- views.pyにpredictを追加
+```python: views.py
+from django.shortcuts import render
+from django.http import HttpResponse
+
+def index(request):
+    return HttpResponse("Hello World!")
+
+def predict(request):
+    return HttpResponse("Show predictions")
+```
+
+## HTMLファイルを作成
+- Djangoのformを使用する<br>
+base.htmlという共通のテンプレートを使用し、個別のhtmlで呼び出し、上書きすることで必要な部分だけ書き換えて使用することができる。
+1. 共通ベーステンプレートファイルを作成
