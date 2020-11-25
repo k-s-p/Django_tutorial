@@ -4,3 +4,4 @@ motorbike/
 womens/
 *.npy
 *.h5
+download.py

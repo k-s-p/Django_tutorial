@@ -627,6 +627,259 @@ def predict(request):
 ```
 
 ## HTMLファイルを作成
+`pip install django-bootstrap4`でbootstrap4モジュールをインストール
 - Djangoのformを使用する<br>
 base.htmlという共通のテンプレートを使用し、個別のhtmlで呼び出し、上書きすることで必要な部分だけ書き換えて使用することができる。
 1. 共通ベーステンプレートファイルを作成
+cabikeフォルダ内に、templatesフォルダを作成。そのtemplatesフォルダ内にcarbikeフォルダを作成し、以下の二ファイルを作成
+- base.html:共通のテンプレートとなり、書き換え可能な部分を他のhtmlで書き換えて使用することができる
+  ```html:
+  <!DOCTYPE html>
+  <html lang="ja">
+  <head>
+      <meta charset="UTF-8">
+      {% load static %}
+      {% load bootstrap4 %}
+      {% bootstrap_css %}
+      <link rel="stylesheet" type="text/css" href="{% static 'carbike/css/style.css' %}">
+      {% bootstrap_javascript jquery='full' %}
+      <title>車・バイク判定 | {% block title %}{% endblock %}</title>
+  </head>
+  <body>
+      <nav class="navbar navbar-expand-lg navbar-light bg-light">
+          <a class="navbar-brand" href="#">画像判定AIアプリ</a>
+      </nav>
+      <div class="container">
+          {% block content %}{% endblock %}
+      </div>
+  </body>
+  </html>
+  ```
+  - タイトル部分`{% block title %}{% endblock %}`
+  - コンテンツ部分`{% block content %}{% endblock %}`
+  - この部分をindex.htmlで作成する
+- index.html：テンプレートのタイトルとコンテンツを上書きするための記述を行う
+  ```html:
+  {% extends 'carbike/base.html %'}
+  {% block title %}車・バイク推定アプリメニュー{% endblock %}
+
+  {% block content %}
+  <div>
+      <h4 class="mt-4 mb-5 booder-bottom">車・バイク推定アプリ</h4>
+      <p>画像ファイルを選択して推定ボタンをクリックしてください。</p>
+      <form action="{% url 'carbike:predict' %}" method="post" class="form" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+          <div class="custom-file">
+              {{ form.image }}
+              <label class="custom-file-label" for="customFile">
+                  推定したいファイルを選択してください。
+              </label>
+          </div>
+      </div>
+      <button type="submit" class="btn btn-primary">推定する！</button>
+      </form>
+  </div>
+  {% endblock %}
+  ```
+  - `{% extends 'carbike/base.html %'}`: carbike/base.htmlを上書きするために読み込む
+  - `{% block title %}車・バイク推定アプリメニュー{% endblock %}`: タイトルを上書きする
+  - `{% block content %}`と`{% endblock %}`で囲んだ部分で、コンテンツを上書きする
+  - `<h4 class="mt-4 mb-5 booder-bottom">車・バイク推定アプリ</h4>`: classでbootstrapのSpacingを使用している
+  - `<form action="{% url 'carbike:predict' %}" method="post" class="form" enctype="multipart/form-data">`: formのアクションとして、ボタンが押されると、djangoのテンプレートエンジンを使用し、carbike:predictに飛ぶようにする.また、ブラウザからデータを送る手法として、POST(通信のヘッダーにデータを含める)を使用する
+    - （データを送る手法）GET：URLに変数を含めて渡す(外部から見えるため要注意)
+  - `{% csrf_token %}`:Django特有の機能。クロスサイトリクエストフォージェリ対策。フォームに外部プログラムからデータを送りつける攻撃を防ぐ
+  - `{{ form.image }}`:{{}}でdjangoの変数を参照する。views.pyからimageというデータを受け取り、ここに埋め込む
+
+2. Formクラスを定義する
+- forms.pyを作成
+```python:
+from django import forms
+
+class PhotoForm(forms.Form):
+    image = forms.ImageField(widget=forms.FileInput(attrs={'class':'custom-file-input'}))
+```
+  - djangoのformsをimportする
+  - forms内のFormclassをもとに、PhotoFormというクラスを作成
+  - formsのImageFieldを定義(画像をアップロードできる)。クラス名も定義する
+
+- views.pyを編集<br>
+`template = loader.get_template('carbike/index.html')`を追加
+  - テンプレートを読み込みtemplate変数に渡す
+`context = {'form':PhotoForm()}`を追加
+  - djangoではcontextに値を入れて、値を渡す
+  - formという名前で参照できる、PhotoFormを渡す
+  - index.htmlで`{{ form.image }}`ここで、参照ができる！
+`return HttpResponse(template.render(context, request))`に変更
+  - templateのrender関数を使用し、contextとrequestを渡す
+  - requestにはセッションの情報や、requestの種類(get,post)などの情報が入っている
+  - contextにはデータの情報が入っている
+
+## アプリケーションを認識させる
+プロジェクトのsettings.pyのINSTALLED_APPSにcarbikeのコンフィグを認識させる
+```Python:
+INSTALLED_APPS = [
+    'carbike.apps.CarbikeConfig'
+```
+さらに、bootstrap4も認識させる
+```python:
+INSTALLED_APPS = [
+    'carbike.apps.CarbikeConfig',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'bootstrap4'
+]
+```
+
+- 次に、carbike/static/carbike/css/style.cssというファイルを作成する
+- 次に、アプリのurls.pyに`app_name = 'carbike'`として、明示的に名前を付ける
+
+## モデルの定義と推定処理を追加する
+1. views.pyを編集
+```python:
+from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.template import loader
+from .forms import PhotoForm
+from .models import Photo
+
+def index(request):
+    template = loader.get_template('carbike/index.html')
+    context = {'form':PhotoForm()}
+    return HttpResponse(template.render(context, request))
+
+def predict(request):
+    if not request.method == 'POST': #データがPOSTで送られてきてないなら、リダイレクトし、トップに戻る
+        return redirect('carbike:index')
+
+    form = PhotoForm(request.POST, request.FILES) #formにrequestからPOSTされたデータのFILESを取り出す
+    if not form.is_valid(): #is_valid関数で、有効なデータかどうかチェックし、無向なら、エラーを返す
+        raise ValueError('Formが不正です')
+
+    #photoにPhotoクラスから'image'というタグのついたデータを取り出す。
+    photo = Photo(image=form.cleaned_data['image'])
+    # photo.predict() #コマンドラインで推定結果を表示するため
+
+    return HttpResponse()
+```
+2. models.pyを編集
+```python:
+from django.db import models
+
+import numpy as np
+#import tensorflow as tf #最新の環境ではこれは使えない
+import tensorflow.compat.v1 as tf
+from tensorflow import keras
+from tensorflow.keras.models import load_model #h5のファイルを読み込めるようにする
+from PIL import Image
+import io, base64
+
+graph = tf.get_default_graph()
+
+class Photo(models.Model):
+    image = models.ImageField(upload_to ='photos') # アップロードファイルの保存先はphotos
+
+    IMAGE_SIZE = 224 #画像サイズ
+    MODEL_FILE_PATH = './carbike/ml_models/vgg16_transfer.h5' #モデルファイル
+    #パラメータの初期化
+    classes = ["car", "motorbike"]
+    num_classes = len(classes)
+
+    #引数から画像ファイルを参照し、numpyアレイに変換する
+    def predict(self):
+        model = None
+        global graph # 毎回同じモデルのセッションにデータを投入し、モデルを使いまわせる
+        with graph.as_default():
+            model = load_model(self.MODEL_FILE_PATH)
+
+            img_data = self.image.read() #img_dataに画像を読み込む
+            img_bin = io.BytesIO(img_data) #データをメモリ上に保持してファイルのようにアクセス
+
+            image = Image.open(img_bin) #バイナリにした画像を与えることで、ファイルを読み込んだことと同じ扱いができる
+            image = image.convert("RGB")
+            image = image.resize((self.IMAGE_SIZE,self.IMAGE_SIZE))
+            data = np.asarray(image) / 255.0
+            X = []
+            X.append(data)
+            X = np.array(X)
+
+            result = model.predict([X])[0] #複数のスコアが帰ってくるので先頭を取得する
+            predicted = result.argmax() #値の大きいほうを取得する
+            percentage = int(result[predicted] * 100)
+
+            print(self.classes[predicted], percentage)
+```
+このコードは推定結果をコマンドプロンプトに返す
+- ブラウザ上に返すように変更
+```
+#print(self.classes[predicted], percentage)
+return self.classes[predicted], percentage
+```
+
+- ブラウザに値を返す処理をviews.pyに追加
+```python:
+from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.template import loader
+from .forms import PhotoForm
+from .models import Photo
+
+def index(request):
+    template = loader.get_template('carbike/index.html')
+    context = {'form':PhotoForm()}
+    return HttpResponse(template.render(context, request))
+
+def predict(request):
+    if not request.method == 'POST': #データがPOSTで送られてきてないなら、リダイレクトし、トップに戻る
+        return redirect('carbike:index')
+
+    form = PhotoForm(request.POST, request.FILES) #formにrequestからPOSTされたデータのFILESを取り出す
+    if not form.is_valid(): #is_valid関数で、有効なデータかどうかチェックし、無向なら、エラーを返す
+        raise ValueError('Formが不正です')
+
+    #photoにPhotoクラスから'image'というタグのついたデータを取り出す。
+    photo = Photo(image=form.cleaned_data['image'])
+    #返り値を受け取る
+    predicted, percentage = photo.predict()
+
+    template = loader.get_template('carbike/result.html')
+
+    context = {
+        'predicted': predicted,
+        'percentage': percentage,
+    }
+
+    return HttpResponse(template.render(context, request))
+```
+
+3. 推定結果を表示するresult.htmlを作成
+```python:
+{% extends 'carbike/base.html' %}
+{% block title %}車・バイク推定結果{% endblock %}
+
+{% block content %}
+<div>
+    <h4 class="mt-4 mb-5 booder-bottom">車・バイク推定結果</h4>
+
+    <table class='table'>
+        <tbody>
+            <tr>
+                <td>推定ラベル</td>
+                <td>{{ predicted }}</td>
+            </tr>
+            <tr>
+                <td>推定確立</td>
+                <td>{{ percentage }} %</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href = "{% url 'carbike:index' %}" class="btn btn-primary">画像選択メニューに戻る</a>
+
+</div>
+{% endblock %}
+```

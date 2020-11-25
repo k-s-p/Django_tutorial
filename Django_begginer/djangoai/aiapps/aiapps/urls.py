@@ -17,6 +17,7 @@ from django.contrib import admin
 from django.urls import path, include
 #import carbike.views as carbike
 
+app_name = 'carbike'
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('carbike/', include('carbike.urls')), #もしもcarbikeというindexを見に来たら、carbike.indexを返す
