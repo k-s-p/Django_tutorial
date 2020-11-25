@@ -43,3 +43,9 @@ class Photo(models.Model):
 
             #print(self.classes[predicted], percentage)
             return self.classes[predicted], percentage
+
+    def image_src(self):
+        with self.image.open() as img:
+            base64_img = base64.b64encode(img.read()).decode()
+
+            return 'data:' + img.file.content_type + ';base64,' + base64_img

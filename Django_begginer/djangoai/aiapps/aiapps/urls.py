@@ -15,9 +15,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.contrib.staticfiles.urls import static
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from . import settings
 #import carbike.views as carbike
 
-app_name = 'carbike'
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('carbike/', include('carbike.urls')), #もしもcarbikeというindexを見に来たら、carbike.indexを返す

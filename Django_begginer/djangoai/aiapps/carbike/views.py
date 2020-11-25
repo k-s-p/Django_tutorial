@@ -25,6 +25,8 @@ def predict(request):
     template = loader.get_template('carbike/result.html')
 
     context = {
+        'photo_name' : photo.image.name,
+        'photo_data' : photo.image_src(),
         'predicted': predicted,
         'percentage': percentage,
     }

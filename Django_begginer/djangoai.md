@@ -883,3 +883,49 @@ def predict(request):
 </div>
 {% endblock %}
 ```
+
+## 結果表示画面に画像ファイル名を表示させる
+- result.htmlに画像の名前を受け取って表示する記述を追加
+```html:
+<tr>
+    <td>ファイル名</td>
+    <td>{{ photo_name }}</td>
+</tr>
+```
+- views.pyに画像の名前をresult.htmlに渡す記述を追加
+```python:
+context = {
+    'photo_name' : photo.image.name,
+    'predicted': predicted,
+    'percentage': percentage,
+}
+```
+
+## 結果画面に画像ファイルを表示する
+- views.pyに画像ファイルをresult.htmlに渡す記述を追加
+```python:
+context = {
+       'photo_name' : photo.image.name,
+       'photo_data' : photo.image_src(),
+       'predicted': predicted,
+       'percentage': percentage,
+}
+```
+- models.pyにviewsへデータを渡す記述を追加
+```python:
+def image_src(self):
+    with self.image.open() as img:
+        base64_img = base64.b64encode(img.read()).decode()
+
+        return 'data:' + img.file.content_type + ';base64,' + base64_img
+```
+  - with : withの後に開始と終了を必要とする処理を記述すると、必須の処理を必ず実行する。（open(),close()等）
+  - base64へimageを変換した後、再変換をしている、、、
+    - 画像ファイルをb64でエンコードするだけだとバイナリ型になるだけなので、decodeすることで文字列に変換し、imgタグで表示できるようになるらしい
+  - returnの文字列は、htmlに渡したら機能する文字列？
+
+# 完成！
+![image](https://user-images.githubusercontent.com/72511158/100231851-eaf69700-2f6a-11eb-9f00-75a5a78fbc69.png)
+![image](https://user-images.githubusercontent.com/72511158/100231921-006bc100-2f6b-11eb-9350-6d1ce76db801.png)
+
+# 自分でカスタマイズ
