@@ -743,4 +743,4 @@ def post_detail(request, post_id):
   <img src="./pg-2.jpg" class = "img-fluid rounded" style="max-height: 200px;"/>
   ```
 
-# AWS上でアプリケーションを公開する
+# AWS上でアプリケーションを公開する(別ファイル)

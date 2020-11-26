@@ -929,3 +929,6 @@ def image_src(self):
 ![image](https://user-images.githubusercontent.com/72511158/100231921-006bc100-2f6b-11eb-9350-6d1ce76db801.png)
 
 # 自分でカスタマイズ
+1. ほかの推定アプリをプロジェクトに追加する
+2. アップロードしたら画像が表示されるようにする
+3. AWSで公開する
