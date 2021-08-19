@@ -1,4 +1,4 @@
-#作成したmyblogappをAWSで公開する
+# 作成したmyblogappをAWSで公開する
 AWS無料枠に登録し、ubuntu環境で、Ngix,Postgreを使用する。<br>
 これらの使い方を簡単に書き残しておく。
 
@@ -50,7 +50,7 @@ AMIは、ソフトウェア構成(OS,アプリケーションサーバー、ア�
 <br>※Ubuntu環境ではPython2とPython3が共存できるため、コマンドは`python`ではなく`python3`と明示する必要がある
 
 ## PostgreSQLの設定をする
-- `sudo -u postgres psql`:postgresといユーザーでpsql(DBに接続)する
+- `sudo -u postgres psql`:postgresというユーザーでpsql(DBに接続)する
 - データベース作成`CREATE DATABASE myblogapp;`
 - ユーザーとパスワードを作成`CREATE USER mybloguser WITH PASSWORD 'p@ssword';`
 - 日本語が使えるようにする`ALTER ROLE mybloguser SET client_encoding TO 'utf8';`
@@ -78,3 +78,124 @@ SSH環境ではSCPのクライアントでファイル転送を行う
   - ホスト名には、サーバーのパブリックIPを入力
   - ユーザー名を入力し、秘密鍵で認証
 - myblogappファイルを丸ごとアップする
+
+## プロジェクトの設定変更
+
+### プロジェクトに接続可能なIPアドレスを変更
+
+`vi settings.py`:vimでsettings.pyを開く。
+
+`settings.py`の**ALLOWED_HOSTS**にAWS EC2のパブリックIPを設定する。
+
+### DBの接続先をsqlite3からPostgreSQLに変更
+
+settings.pyの`DATABASES`に対して以下の変更を加える
+
+* `'ENGINE':'django.db.backends.postgresql_psycopg2',`
+* `'NAME': 'myblogapp',` #自分で設定した名前
+* `'USER':'mybloguser',` #自分で設定したユーザー
+* `'PASSWORD': 'p@ssword',` #自分で設定したパスワード
+* `'HOST': 'localhost',`
+* `'PORT': ''` #デフォルトのポートを使用するため空白で大丈夫
+
+その後、`python3 manage.py makemigrations`し、`python3 manage.py migrate`する.
+
+### 内蔵サーバーの起動
+
+`python3 manage.py runserver ip:8000`で内蔵サーバーで外部からアクセスできる
+
+## 管理者アカウントの作成
+
+`python3 manage.py createsuperuser`
+
+その後、管理画面ログイン用の名前、パスワード、メールを設定する。
+
+### 引っかかったのでメモ。
+
+adminページにログインしようとしたところ、`database connection isn't set to utc django`というエラーが発生した。
+
+```bash
+postgres=# select * from pg_timezone_names where name like 'UTC';
+ name | abbrev | utc_offset | is_dst
+------+--------+------------+--------
+ UTC  | CST    | 08:00:00   | f
+ ```
+
+timezoneがおかしいようで、`sudo apt install tzdata --reinstall`とすることで解決した。
+
+```bash
+postgres=# select * from pg_timezone_names where name like 'UTC';
+ name | abbrev | utc_offset | is_dst
+------+--------+------------+--------
+ UTC  | UTC    | 00:00:00   | f
+ ```
+## gunicornを単体で動作させる
+
+1. `which gunicorn`でインストールされているか確認
+1. `gunicorn --bind 0.0.0.0:8000 myblogapp.wsgi`で指定したアドレスでgunicornを起動
+ 
+### gunicornの自動起動設定を行う
+
+`/etc/systemd/system/sshd.service`と同じものをgunicorn用に作成する。
+
+- `sudo vi /etc/systemd/system/gunicorn.service`に以下の記述
+
+```
+[Unit]
+Description=gunicorn daemon
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/myblogapp・
+ExecStart=/home/ubuntu/py36/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/ubuntu/myblogapp/myblogapp.sock myblogapp.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
+```
+
+その後、`sudo systemctl start gunicorn`,`sudo systemctl enable gunicorn`とし、以下のメッセージが表示されたら成功.シンボリックリンクが作成される。
+
+`Created symlink from /etc/systemd/system/multi-user.target.wants/gunicorn.service to /etc/systemd/system/gunicorn.service.`
+
+* `sudo systemctl status gunicorn`でステータスの詳細が確認可能
+
+* `sudo journalctl -u gunicorn`でログを確認可能
+
+## Nginxでアプリを動かす
+
+`cd /etc/nginx/sites-available/`に移動し、`sudo vi myblogapp`を作成.
+
+```myblogapp
+server {
+        listen 80;
+        server_name 18.191.216.42;
+
+        location = /favicon.ico {access_log off; log_not_found off;}
+        location /static/ {
+                root /home/ubuntu/myblogapp;
+        }
+
+        location / {
+                include proxy_params;
+                proxy_pass http://unix:/home/ubuntu/myblogapp/myblogapp.sock;
+        }
+}
+```
+
+* `sudo ln -s /etc/nginx/sites-available/myblogapp /etc/nginx/sites-enabled/`
+
+* `sudo nginx -t`でテスト起動
+
+* `sudo systemctl restart nginx`でリスタート
+
+* `sudo ufw delete allow 8000`でUbuntuのソフトウェアファイアウォールの8000番ポートを無効化
+
+* `sudo ufw allow 'Nginx Full'`でルールを更新
+
+* EC2のインバウンドルールにHTTPを追加
+
+* `sudo systemctl restart gunicorn`でgunicornをリスタート
+
+## ここまででひとまず完成!
