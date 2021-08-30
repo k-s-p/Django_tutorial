@@ -5,6 +5,7 @@ Djangoの勉強について記していく。<br>
 ## myblogapp
 ブログアプリを作成する。<br>
 ブログは画像の投稿ができるようにし、BootStrapを使用して画面のレイアウトを整える。
+GunicornとNginxを使用しAWSのEC2上に公開
 
 ## djangoai
 車とバイク推定アプリを作成する。<br>
